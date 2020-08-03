@@ -11,56 +11,97 @@ const dOpt = {
 	"TE":"Trailers"
 }
 
-exports.getBasicInfo = (url, cb) => {
+exports.getHome = (url, cb) => {
 	got.get(url, dOpt).then(function(response) {
 		var $ = cheerio.load(response.body);
-		for (var c in $("body meta")) {
-			if ($("body meta")[c].attribs !== undefined) {
-				if ($("body meta")[c].attribs.name !== undefined) {
-					if ($("body meta")[c].attribs.name == "title") {
-						var authorName = $("body meta")[c].attribs.content
-					}
-					if ($("body meta")[c].attribs.name == "description") {
-						var desc = $("body link")[c].attribs.content;
-					}
-				} else if ($("body meta")[c].attribs.itemprop !== undefined) {
-					if ($("body meta")[c].attribs.itemprop == "isFamilyFriendly") {
-						if ($("body meta")[c].attribs.content == "True") {
-							var ff = true;
-						} else if ($("body meta")[c].attribs.content == "False") {
-							var ff = false;
-						} else {
-							var ff = null;
-						}
-					}
-					if ($("body meta")[c].attribs.itemprop == "channelId") {
-						var channelId = $("body meta")[c].attribs.content;
-					}
-					if ($("body meta")[c].attribs.itemprop == "regionsAllowed") {
-						var d = $("body meta")[c].attribs.content.split(",");
-						var ra = [];
-						for (var c in d) {
-							ra.push(d[c]);
-						}
-					}
+		var d = JSON.parse($.html().split('ytInitialData"] = ')[1].split(';')[0]);
+		var md = d.metadata.channelMetadataRenderer;
+		var hdr = d.header.c4TabbedHeaderRenderer;
+		var homeRender = d.contents.twoColumnBrowseResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents;
+		var h = [];
+		for (var d in homeRender) {
+			var tit = homeRender[d].itemSectionRenderer.contents[0].shelfRenderer.title.runs[0].text;
+			var content = homeRender[d].itemSectionRenderer.contents[0].shelfRenderer.content.horizontalListRenderer.items;
+			var v = [];
+			for (var e in content) {
+				var vTitle = content[e].gridVideoRenderer.title.simpleText;
+				var vId = content[e].gridVideoRenderer.videoId;
+				var vPubTxt = content[e].gridVideoRenderer.publishedTimeText.simpleText;
+				var viewCount = content[e].gridVideoRenderer.viewCountText;
+				var sViewCount = content[e].gridVideoRenderer.shortViewCountText;
+				var top = content[e].gridVideoRenderer.thumbnail.thumbnails.length - 1;
+				var thumb = content[e].gridVideoRenderer.thumbnail.thumbnails[top].url.split("?")[0];
+				var data = {
+					"title": vTitle,
+					"videoId": vId,
+					"publishedText": vPubTxt,
+					"viewCounts": {
+						"shortened": sViewCount,
+						"full": viewCount,
+					},
+					"thumbnail": thumb
 				}
+				v.push(data);
 			}
-		}
-		for (var c in $("body link")) {
-			if ($("body link")[c].attribs && $("body link")[c].attribs.rel !== undefined) {
-				if ($("body link")[c].attribs.rel == "image_src") {
-					var profilePic = $("body link")[c].attribs.href.split("=s")[0];
-				}
+			var dat = {
+				"title": tit,
+				v
 			}
+			h.push(dat);
 		}
+		
 		var finalData = JSON.stringify({
-			"name": authorName,
-			"profilePic": profilePic,
-			"description": desc,
-			"allowedRegions": ra,
-			"channelId": channelId
+			"shelves": h,
+			"meta": {
+				"channelId": md.externalId,
+				"authorName": md.title,
+				"avatars": md.avatar.thumbnails[md.avatar.thumbnails.length - 1].url.split("=s")[0],
+				"subscriberCount": hdr.subscriberCountText.runs[0].text,
+				"banners": "https:" + hdr.tvBanner.thumbnails[hdr.tvBanner.thumbnails.length - 1].url.split("=w")[0] + "=w2560"
+			}
 		})
 		var err = null
-		cb(err, finalData)
+		cb(err, finalData);
+	})
+}
+
+exports.getUploads = (id, opt, cb) => {
+	if (!id | !cb) {
+		console.error("[YTCH ERR] You must have all params!");
+		return false;
+	}
+	var url = "https://youtube.com/channel/" + id + "/videos";
+	got.get(url, dOpt).then(function(response) {
+		var $ = cheerio.load(response.body);
+		var d = JSON.parse($.html().split('ytInitialData"] = ')[1].split(';')[0]);
+		var videos = d.contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].gridRenderer.items;
+		var cont = d.contents.twoColumnBrowseResultsRenderer.tabs[1].tabRenderer.content.sectionListRenderer.contents[0].itemSectionRenderer.contents[0].gridRenderer.continuations[0].nextContinuationData;
+		var v = [];
+		for (var e in videos) {
+			var vTitle = videos[e].gridVideoRenderer.title.simpleText;
+			var vId = videos[e].gridVideoRenderer.videoId;
+			var vPubTxt = videos[e].gridVideoRenderer.publishedTimeText.simpleText;
+			var viewCount = videos[e].gridVideoRenderer.viewCountText;			
+			var sViewCount = videos[e].gridVideoRenderer.shortViewCountText;
+			var top = videos[e].gridVideoRenderer.thumbnail.thumbnails.length - 1;
+			var thumb = videos[e].gridVideoRenderer.thumbnail.thumbnails[top].url.split("?")[0];
+			var data = {
+				"title": vTitle,
+				"videoId": vId,
+				"publishedText": vPubTxt,
+				"viewCounts": {
+					"shortened": sViewCount,
+					"full": viewCount,
+				},
+				"thumbnail": thumb
+			}
+			v.push(data);
+		}
+		var finalData = JSON.stringify({
+			"videos": v,
+			"continuation": cont
+		})
+		var err = null
+		cb(err, finalData);
 	})
 }

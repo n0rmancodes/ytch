@@ -1,6 +1,6 @@
 {
   "name": "ytch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "YouTube channel scraper.",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/n0rmancodes/ytch.git"
   },
-  "author": "",
+  "author": "n0rmancodes",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/n0rmancodes/ytch/issues"
@@ -19,5 +19,15 @@
   "dependencies": {
     "cheerio": "^1.0.0-rc.3",
     "got": "^11.5.1"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "youtube",
+    "channel",
+    "yt",
+    "scraper"
+  ]
 }
